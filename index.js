@@ -46,6 +46,7 @@ const {
 } = require("@aws-sdk/client-s3");
 
 const URL_DB = process.env.URL_DB
+const URL_DB_PROD = process.env.URL_DB_PROD
 
 const bucketName = process.env.AWS_BUCKET_NAME;
 const region = process.env.AWS_BUCKET_REGION;
@@ -201,7 +202,7 @@ app.get("/posts/:etiqueta", async (req, res) => {
 
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
-  mongoose.connect(URL_DB, () => {
+  mongoose.connect(URL_DB_PROD, () => {
     console.log("Conectado a base de datos");
   });
 });
