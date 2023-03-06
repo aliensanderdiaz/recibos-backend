@@ -35,28 +35,24 @@ const mongoose = require("mongoose");
 
 const S3 = require("aws-sdk/clients/s3");
 
-
-
-
-
 const {
   S3Client,
   PutObjectCommand,
   GetObjectCommand,
 } = require("@aws-sdk/client-s3");
 
-const URL_DB = process.env.URL_DB
-const URL_DB_PROD = process.env.URL_DB_PROD
+const URL_DB = process.env.URL_DB;
+const URL_DB_PROD = process.env.URL_DB_PROD;
 
 const bucketName = process.env.AWS_BUCKET_NAME;
 const region = process.env.AWS_BUCKET_REGION;
 const accessKeyId = process.env.AWS_ACCESS_KEY;
 const secretAccessKey = process.env.AWS_SECRET_KEY;
 
-const AWS_BUCKET_NAME = process.env.AWS_BUCKET_NAME
-const AWS_BUCKET_REGION = process.env.AWS_BUCKET_REGION
-const AWS_ACCESS_KEY = process.env.AWS_ACCESS_KEY
-const AWS_SECRET_KEY = process.env.AWS_SECRET_KEY
+const AWS_BUCKET_NAME = process.env.AWS_BUCKET_NAME;
+const AWS_BUCKET_REGION = process.env.AWS_BUCKET_REGION;
+const AWS_ACCESS_KEY = process.env.AWS_ACCESS_KEY;
+const AWS_SECRET_KEY = process.env.AWS_SECRET_KEY;
 
 const s3 = new S3({
   region,
@@ -75,12 +71,18 @@ const client = new S3Client({
 const port = process.env.PORT || 3000;
 
 const app = express();
+
 app.use(cors());
+
 app.use(express.json());
-app.use(fileUpload({
-  useTempFiles : true,
-  tempFileDir : './archivos'
-}));
+app.use(
+  fileUpload({
+    // useTempFiles: true,
+    // tempFileDir: "./archivos",
+  })
+);
+
+app.use(require("./routes/servicioDos.routes"));
 
 const Recibo = mongoose.model("Recibo", {
   cliente: String,
@@ -90,21 +92,21 @@ const Recibo = mongoose.model("Recibo", {
   foto: Boolean,
 });
 
-async function uploadFile(file) {
-  const stream = fs.createReadStream(file.tempFilePath);
+// async function uploadFile(file) {
+//   const stream = fs.createReadStream(file.tempFilePath);
 
-  const uploadParams = {
-    Bucket: AWS_BUCKET_NAME,
-    Key: file.name,
-    Body: stream,
-  };
+//   const uploadParams = {
+//     Bucket: AWS_BUCKET_NAME,
+//     Key: file.name,
+//     Body: stream,
+//   };
 
-  console.log({ uploadParams });
+//   console.log({ uploadParams });
 
-  const command = new PutObjectCommand(uploadParams);
+//   const command = new PutObjectCommand(uploadParams);
 
-  return await client.send(command);
-}
+//   return await client.send(command);
+// }
 
 const generarCodigo = function () {
   let letras = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -131,17 +133,20 @@ const generarCodigo = function () {
   return etiqueta;
 };
 
-app.get('/', (req, res) => {
-    res.json({
-        mensaje: 'Hola ya puedes acceder a amazon'
-    })
-})
+app.get("/", (req, res) => {
+  res.json({
+    mensaje: "Hola ya puedes acceder a amazon",
+  });
+});
 
 app.post("/posts/upload", async (req, res) => {
-  console.log({ 'req.files': req.files, name: req.files['image'].name })
+  console.log({ "req.files": req.files, name: req.files["image"].name });
   const result = await uploadFile(req.files["image"]);
-  const reciboUpdate = await Recibo.findOneAndUpdate({ etiqueta: req.files['image'].name}, {foto: true})
-  res.json({ result, reciboUpdate })
+  const reciboUpdate = await Recibo.findOneAndUpdate(
+    { etiqueta: req.files["image"].name },
+    { foto: true }
+  );
+  res.json({ result, reciboUpdate });
 });
 
 app.post("/posts/crear", async (req, res) => {
@@ -179,29 +184,34 @@ app.post("/posts/upload", (req, res) => {
 });
 
 app.get("/posts/:etiqueta", async (req, res) => {
-  const downloadParams = {
-    Key: req.params.etiqueta + ".jpg",
-    Bucket: bucketName,
-    Expires: 86400,
-  };
+  try {
+    const downloadParams = {
+      Key: req.params.etiqueta + ".jpg",
+      Bucket: bucketName,
+      Expires: 86400,
+    };
 
-  const url = s3.getSignedUrl("getObject", downloadParams);
+    const url = s3.getSignedUrl("getObject", downloadParams);
 
-  console.log({ url });
+    console.log({ url });
 
-  let recibo = await Recibo.findOne({ etiqueta: req.params.etiqueta });
+    let recibo = await Recibo.findOne({ etiqueta: req.params.etiqueta });
 
-  let reciboString = JSON.stringify(recibo);
+    let reciboString = JSON.stringify(recibo);
 
-  recibo = JSON.parse(reciboString);
+    recibo = JSON.parse(reciboString);
 
-  recibo = { ...recibo, url };
+    recibo = { ...recibo, url };
 
-  res.json(recibo);
+    res.json(recibo);
+  } catch (error) {
+    res.json({ error });
+  }
 });
 
 app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`);
+  console.log({message: `Example app listening on port ${port}`, URL_DB_PROD});
+  mongoose.set('strictQuery', false);
   mongoose.connect(URL_DB_PROD, () => {
     console.log("Conectado a base de datos");
   });
